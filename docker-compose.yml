@@ -1,0 +1,79 @@
+version: '3.8'
+
+services:
+
+  # CONTENEUR 1 — Extract
+  # Il tourne en premier
+  extract:
+    build:
+      context: ./extract
+      dockerfile: Dockerfile
+    container_name: etl_extract
+    volumes:
+      - ./data:/app/data
+    # Ce conteneur s'arrête quand le script finit
+    # C'est normal pour un pipeline ETL !
+
+  # CONTENEUR 2 — Transform
+  # Il attend qu'Extract soit terminé
+  transform:
+    build:
+      context: ./transform
+      dockerfile: Dockerfile
+    container_name: etl_transform
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      extract:
+        condition: service_completed_successfully
+      database:
+        condition: service_healthy
+
+  # CONTENEUR 3 — Load
+  # Il attend que Transform soit terminé
+  load:
+    build:
+      context: ./load
+      dockerfile: Dockerfile
+    container_name: etl_load
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      transform:
+        condition: service_completed_successfully
+      database:
+        condition: service_healthy
+  
+  # CONTENEUR 4 — Base de données PostgreSQL
+  # Stocke les données nettoyées au lieu de clean.csv
+  database:
+    image: postgres:16
+    container_name: etl_database
+    environment:
+      POSTGRES_DB: ecommerce_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d ecommerce_db"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+  
+  # CONTENEUR 5 — Backend FastAPI
+  # Expose les données de PostgreSQL via une API REST
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: etl_backend
+    ports:
+      - "8000:8000"
+    depends_on:
+      database:
+        condition: service_healthy
+volumes:
+  postgres_data:

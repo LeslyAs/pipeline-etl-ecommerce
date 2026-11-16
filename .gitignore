@@ -1,0 +1,19 @@
+# Dépendances Node.js (régénérables avec npm install)
+node_modules/
+frontend/node_modules/
+
+# Fichiers de build Next.js
+.next/
+frontend/.next/
+
+# Données générées par le pipeline
+data/raw.csv
+data/clean.csv
+
+# Fichiers système
+.DS_Store
+Thumbs.db
+
+# Variables d'environnement sensibles (si tu en ajoutes plus tard)
+.env
+.env.local
